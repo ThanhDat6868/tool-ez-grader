@@ -1,0 +1,391 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EZ Grader - Công cụ chấm điểm</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .grade-A, .grade-A\\+, .grade-A\\- { background:#dcfce7; color:#166534; }
+    .grade-B, .grade-B\\+, .grade-B\\- { background:#dbeafe; color:#1e40af; }
+    .grade-C, .grade-C\\+, .grade-C\\- { background:#fef9c3; color:#854d0e; }
+    .grade-D, .grade-D\\+, .grade-D\\- { background:#ffedd5; color:#9a3412; }
+    .grade-F { background:#fee2e2; color:#991b1b; }
+    input, select { outline: none; }
+    input:focus, select:focus { border-color:#2563eb !important; }
+    @media print {
+      body { background:white !important; }
+      .no-print { display:none !important; }
+      #chartSection { display:block !important; }
+      #chartSection table { font-size:12px; }
+      main { max-width:100% !important; padding:0 !important; }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+<header class="bg-white border-b shadow-sm no-print">
+  <div class="max-w-5xl mx-auto px-4 py-5">
+    <h1 class="text-2xl md:text-3xl font-bold text-blue-700">EZ Grader</h1>
+    <p class="text-slate-500 mt-1">Công cụ tính điểm và chấm bài kiểm tra nhanh chóng</p>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-8">
+
+  <section class="bg-white rounded-2xl shadow-sm p-5 md:p-7 mb-6 no-print">
+    <h2 class="text-xl font-bold mb-2">Công cụ chấm điểm dễ dàng</h2>
+    <p class="text-slate-500 text-sm mb-5">
+      Nhập tổng số câu hỏi, số câu sai và chọn thang điểm để xem kết quả.
+    </p>
+
+    <div class="flex flex-wrap gap-2 mb-6">
+      <button onclick="example(10,2,'standard')" class="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">10 câu hỏi</button>
+      <button onclick="example(25,3,'standard')" class="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">25 câu - sai 3</button>
+      <button onclick="example(50,5,'plus')" class="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">50 câu - cộng/trừ</button>
+      <button onclick="example(15,2,'lenient')" class="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">Thang khoan dung</button>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5">
+      <div>
+        <label class="block font-semibold text-sm mb-2">Tổng số câu hỏi</label>
+        <input id="total" type="number" min="1" max="500" value="20"
+          class="w-full border border-slate-300 rounded-xl p-3">
+        <p class="text-xs text-slate-400 mt-1">Nhập từ 1 đến 500 câu hỏi.</p>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-sm mb-2">Số câu trả lời sai</label>
+        <input id="wrong" type="number" min="0" value="0"
+          class="w-full border border-slate-300 rounded-xl p-3">
+        <p class="text-xs text-slate-400 mt-1">Nhập số câu sai của bài kiểm tra.</p>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-sm mb-2">Thang điểm</label>
+        <select id="scale" class="w-full border border-slate-300 rounded-xl p-3">
+          <option value="standard">Tiêu chuẩn (A 90, B 80, C 70, D 60)</option>
+          <option value="plus">Điểm cộng / điểm trừ (+/-)</option>
+          <option value="lenient">Khoan dung (A từ 85%)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-sm mb-2">Quy tắc làm tròn</label>
+        <select id="rounding" class="w-full border border-slate-300 rounded-xl p-3">
+          <option value="nearest">Làm tròn gần nhất</option>
+          <option value="up">Luôn làm tròn lên</option>
+          <option value="exact">Giữ điểm chính xác</option>
+        </select>
+      </div>
+    </div>
+
+    <button onclick="calculate()" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl py-3">
+      Tính toán điểm
+    </button>
+    <p id="error" class="text-red-600 text-sm mt-3 hidden"></p>
+  </section>
+
+  <section id="resultSection" class="hidden">
+
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
+        <p class="text-slate-500 text-sm">Điểm số</p>
+        <div id="score" class="text-5xl font-bold text-blue-600 my-3">100%</div>
+        <p id="correctText" class="text-sm text-slate-500">20 / 20 câu đúng</p>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
+        <p class="text-slate-500 text-sm">Điểm chữ</p>
+        <div id="letter" class="text-5xl font-bold text-green-600 my-3">A</div>
+        <p id="scaleText" class="text-sm text-slate-500">Thang điểm tiêu chuẩn</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm p-5 md:p-6 mb-6">
+      <h3 class="font-bold text-lg mb-4">Điều chỉnh số câu sai</h3>
+      <input id="wrongSlider" type="range" min="0" max="20" value="0" class="w-full accent-blue-600">
+      <div class="flex justify-between text-sm text-slate-500 mt-2">
+        <span>0 câu sai</span>
+        <span id="sliderMax">20 câu sai</span>
+      </div>
+      <div class="mt-4 p-4 rounded-xl bg-blue-50 text-center">
+        <span id="sliderResult" class="font-bold text-blue-700">0 câu sai - 100%</span>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm p-5 md:p-6 mb-6">
+      <h3 class="font-bold text-lg mb-4">Thông tin bài kiểm tra</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-slate-50 p-4 rounded-xl">
+          <p class="text-xs text-slate-500">Tổng câu hỏi</p>
+          <p id="statTotal" class="text-2xl font-bold mt-1">20</p>
+        </div>
+        <div class="bg-slate-50 p-4 rounded-xl">
+          <p class="text-xs text-slate-500">Điểm mỗi câu</p>
+          <p id="statValue" class="text-2xl font-bold mt-1">5%</p>
+        </div>
+        <div class="bg-slate-50 p-4 rounded-xl">
+          <p class="text-xs text-slate-500">Số câu đúng</p>
+          <p id="statCorrect" class="text-2xl font-bold text-green-600 mt-1">20</p>
+        </div>
+        <div class="bg-slate-50 p-4 rounded-xl">
+          <p class="text-xs text-slate-500">Số câu sai</p>
+          <p id="statWrong" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="chartSection" class="bg-white rounded-2xl shadow-sm p-5 md:p-6 mb-6">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div>
+          <h3 class="font-bold text-lg">Bảng điểm đầy đủ</h3>
+          <p id="chartDescription" class="text-sm text-slate-500 mt-1">Bảng điểm cho bài kiểm tra</p>
+        </div>
+        <button onclick="window.print()" class="no-print px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700">
+          🖨 In bảng điểm
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-center">
+          <thead class="bg-slate-100">
+            <tr>
+              <th class="p-3">Số câu sai</th>
+              <th class="p-3">Số câu đúng</th>
+              <th class="p-3">Điểm số</th>
+              <th class="p-3">Xếp loại</th>
+            </tr>
+          </thead>
+          <tbody id="chartBody"></tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 mt-4">
+        Nhấn vào một hàng để chọn số câu sai tương ứng.
+      </p>
+    </div>
+
+  </section>
+
+  <section class="bg-white rounded-2xl shadow-sm p-5 md:p-6 mb-6">
+    <h3 class="font-bold text-lg mb-3">Cách tính điểm</h3>
+    <div class="bg-blue-50 rounded-xl p-4 text-center mb-4">
+      <p class="font-bold text-blue-800">
+        Điểm (%) = (Số câu đúng / Tổng số câu hỏi) × 100
+      </p>
+    </div>
+    <p class="text-sm text-slate-600 leading-7">
+      Ví dụ: Bài kiểm tra có 25 câu hỏi, học sinh làm sai 3 câu.
+      Số câu đúng là 25 - 3 = 22 câu.
+      Điểm số = 22 / 25 × 100 = 88%.
+    </p>
+  </section>
+
+  <section class="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+    <h3 class="font-bold text-lg mb-3">Hướng dẫn sử dụng</h3>
+    <ol class="list-decimal pl-5 space-y-2 text-sm text-slate-600">
+      <li>Nhập tổng số câu hỏi của bài kiểm tra.</li>
+      <li>Nhập số câu trả lời sai.</li>
+      <li>Chọn thang điểm và quy tắc làm tròn.</li>
+      <li>Nhấn Tính toán điểm để xem kết quả.</li>
+      <li>Kéo thanh trượt hoặc chọn hàng trong bảng để xem điểm từng bài.</li>
+      <li>Nhấn In bảng điểm nếu muốn lưu hoặc in kết quả.</li>
+    </ol>
+  </section>
+
+  <footer class="text-center text-sm text-slate-400 py-8">
+    EZ Grader - Công cụ tính điểm miễn phí
+  </footer>
+
+</main>
+
+<script>
+  const totalInput = document.getElementById("total");
+  const wrongInput = document.getElementById("wrong");
+  const scaleInput = document.getElementById("scale");
+  const roundingInput = document.getElementById("rounding");
+  const slider = document.getElementById("wrongSlider");
+
+  let currentTotal = 20;
+
+  function example(total, wrong, scale) {
+    totalInput.value = total;
+    wrongInput.value = wrong;
+    scaleInput.value = scale;
+    calculate();
+  }
+
+  function getGrade(score) {
+    const scale = scaleInput.value;
+
+    if (scale === "plus") {
+      if (score >= 97) return "A+";
+      if (score >= 93) return "A";
+      if (score >= 90) return "A-";
+      if (score >= 87) return "B+";
+      if (score >= 83) return "B";
+      if (score >= 80) return "B-";
+      if (score >= 77) return "C+";
+      if (score >= 73) return "C";
+      if (score >= 70) return "C-";
+      if (score >= 67) return "D+";
+      if (score >= 63) return "D";
+      if (score >= 60) return "D-";
+      return "F";
+    }
+
+    const aStart = scale === "lenient" ? 85 : 90;
+
+    if (score >= aStart) return "A";
+    if (score >= 80) return "B";
+    if (score >= 70) return "C";
+    if (score >= 60) return "D";
+    return "F";
+  }
+
+  function getRoundedScore(rawScore) {
+    const rule = roundingInput.value;
+
+    if (rule === "nearest") return Math.round(rawScore);
+    if (rule === "up") return Math.ceil(rawScore);
+    return rawScore;
+  }
+
+  function formatScore(score) {
+    return Number(score.toFixed(2)).toString() + "%";
+  }
+
+  function gradeClass(grade) {
+    return "grade-" + grade;
+  }
+
+  function calculate() {
+    const total = Number(totalInput.value);
+    const wrong = Number(wrongInput.value);
+    const error = document.getElementById("error");
+
+    if (!Number.isInteger(total) || total < 1 || total > 500) {
+      error.textContent = "Vui lòng nhập tổng số câu hỏi từ 1 đến 500.";
+      error.classList.remove("hidden");
+      return;
+    }
+
+    if (wrongInput.value === "" || !Number.isFinite(wrong) || wrong < 0 || wrong > total) {
+      error.textContent = "Số câu sai phải nằm trong khoảng từ 0 đến tổng số câu hỏi.";
+      error.classList.remove("hidden");
+      return;
+    }
+
+    error.classList.add("hidden");
+    currentTotal = total;
+
+    document.getElementById("resultSection").classList.remove("hidden");
+
+    slider.max = total;
+    slider.value = wrong;
+    document.getElementById("sliderMax").textContent = total + " câu sai";
+    document.getElementById("statTotal").textContent = total;
+    document.getElementById("statValue").textContent = formatScore(100 / total);
+    document.getElementById("chartDescription").textContent =
+      "Bảng điểm cho bài kiểm tra " + total + " câu hỏi";
+
+    updateResult(wrong);
+    createChart();
+
+    document.getElementById("resultSection").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
+
+  function updateResult(wrong) {
+    const correct = currentTotal - wrong;
+    const rawScore = correct / currentTotal * 100;
+    const score = getRoundedScore(rawScore);
+    const grade = getGrade(score);
+
+    document.getElementById("score").textContent = formatScore(score);
+    document.getElementById("letter").textContent = grade;
+    document.getElementById("correctText").textContent =
+      correct + " / " + currentTotal + " câu đúng";
+
+    document.getElementById("scaleText").textContent =
+      scaleInput.options[scaleInput.selectedIndex].text;
+
+    document.getElementById("statCorrect").textContent = correct;
+    document.getElementById("statWrong").textContent = wrong;
+
+    document.getElementById("sliderResult").textContent =
+      wrong + " câu sai - " + formatScore(score) + " - " + grade;
+
+    wrongInput.value = wrong;
+    slider.value = wrong;
+  }
+
+  function createChart() {
+    const body = document.getElementById("chartBody");
+    body.innerHTML = "";
+
+    for (let wrong = 0; wrong <= currentTotal; wrong++) {
+      const correct = currentTotal - wrong;
+      const rawScore = correct / currentTotal * 100;
+      const score = getRoundedScore(rawScore);
+      const grade = getGrade(score);
+
+      const row = document.createElement("tr");
+      row.className = "border-b hover:bg-blue-50 cursor-pointer";
+      row.innerHTML = `
+        <td class="p-3">${wrong}</td>
+        <td class="p-3">${correct}</td>
+        <td class="p-3 font-semibold">${formatScore(score)}</td>
+        <td class="p-3">
+          <span class="inline-block px-3 py-1 rounded-lg font-bold ${gradeClass(grade)}">
+            ${grade}
+          </span>
+        </td>
+      `;
+
+      row.addEventListener("click", function() {
+        updateResult(wrong);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+
+      body.appendChild(row);
+    }
+  }
+
+  slider.addEventListener("input", function() {
+    updateResult(Number(slider.value));
+  });
+
+  wrongInput.addEventListener("input", function() {
+    const value = Number(wrongInput.value);
+
+    if (wrongInput.value !== "" && Number.isInteger(value) &&
+        value >= 0 && value <= currentTotal) {
+      updateResult(value);
+    }
+  });
+
+  scaleInput.addEventListener("change", function() {
+    if (!document.getElementById("resultSection").classList.contains("hidden")) {
+      updateResult(Number(wrongInput.value));
+      createChart();
+    }
+  });
+
+  roundingInput.addEventListener("change", function() {
+    if (!document.getElementById("resultSection").classList.contains("hidden")) {
+      updateResult(Number(wrongInput.value));
+      createChart();
+    }
+  });
+
+  calculate();
+</script>
+
+</body>
+</html>
